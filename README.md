@@ -1,141 +1,115 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# 🌟 个人中枢App (Personal Life OS)
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+> 专属个人人生操作系统 - 基于AI全栈开发、模块化插件架构设计
 
-## ✨ Technology Stack
+## ✨ 核心特性
 
-This scaffold provides a robust foundation built with:
+### 🏗️ 插件化微内核架构
+- **轻量主壳** - 承载全周期时间轴、全局AI大脑、积分勋章系统
+- **八大独立模块** - 物理隔离、互不依赖、可独立增删改
+- **只读数据总线** - 模块间安全通信，数据绝对隔离
 
-### 🎯 Core Framework
-- **⚡ Next.js 16** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+### 📊 全周期时间轴
+- 今日 → 本周 → 本月 → 季度 → 年度 五维度视图
+- 智能卡片推荐、任务管理、快速复盘
+- 周目标进度、月度统计、年度里程碑
 
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
+### 🤖 AI智能助手
+- 情绪识别与陪伴
+- 智能建议与成长激励
+- 多场景AI对话支持
 
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
+### 🎮 游戏化系统
+- 积分获取与消耗
+- 18+ 枚勋章成就
+- 等级系统与奖励机制
 
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
+## 📦 八大功能模块
 
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
+| 模块 | 功能 |
+|------|------|
+| 🎨 **形象管理** | 衣橱管理、AI穿搭推荐、肤质记录、护肤方案 |
+| 💚 **健康养生** | 中医体质分析、舌象记录、养生茶饮、调理计划 |
+| 📐 **数学教学** | 学生管理、AI教案生成、题库管理、考试分析 |
+| 📱 **自媒体IP** | 文案脚本库、选题策划、发布日历、数据分析 |
+| 💕 **情感人际** | 关系记录、沟通策略、相亲管理、情感复盘 |
+| 💰 **副业增收** | 项目管理、收支记录、运营模板、收益统计 |
+| 🎯 **自我成长** | 五年计划、习惯打卡、认知复盘、目标追踪 |
+| 🔧 **生活工具** | 财务记账、事务提醒、地址管理、证件卡片 |
 
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
+## 🛠️ 技术栈
 
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
+| 类别 | 技术 |
+|------|------|
+| **框架** | Next.js 16 + TypeScript 5 |
+| **UI** | Tailwind CSS + shadcn/ui + Framer Motion |
+| **数据库** | Prisma + SQLite |
+| **状态管理** | Zustand |
+| **AI** | z-ai-web-dev-sdk |
 
-## 🎯 Why This Scaffold?
-
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
-
-## 🚀 Quick Start
+## 🚀 快速开始
 
 ```bash
-# Install dependencies
+# 安装依赖
 bun install
 
-# Start development server
+# 同步数据库
+bun run db:push
+
+# 启动开发服务器
 bun run dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
-
-## 🤖 Powered by Z.ai
-
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
-
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
-
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
-
-## 📁 Project Structure
+## 📁 项目结构
 
 ```
 src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
+├── app/                 # 页面与API路由
+│   ├── api/            # 后端API
+│   │   ├── ai/        # AI对话API
+│   │   ├── tasks/     # 任务API
+│   │   ├── habits/    # 习惯API
+│   │   ├── points/    # 积分API
+│   │   └── data-bus/  # 数据总线API
+│   ├── layout.tsx     # 根布局
+│   └── page.tsx       # 主页面
+├── components/
+│   ├── layout/        # 主布局组件
+│   ├── home/          # 首页时间轴组件
+│   ├── common/        # 通用组件
+│   ├── modules/       # 八大功能模块
+│   │   ├── image/    # 形象管理
+│   │   ├── health/   # 健康养生
+│   │   ├── teaching/ # 数学教学
+│   │   ├── media/    # 自媒体IP
+│   │   ├── emotion/  # 情感人际
+│   │   ├── sidejob/  # 副业增收
+│   │   ├── growth/   # 自我成长
+│   │   └── tools/    # 生活工具
+│   └── ui/            # shadcn/ui组件库
+├── lib/
+│   ├── db.ts          # 数据库客户端
+│   ├── data-bus.ts    # 只读数据总线
+│   └── utils.ts       # 工具函数
+├── stores/
+│   └── app-store.ts   # Zustand状态管理
+├── types/
+│   └── index.ts       # 类型定义
+└── prisma/
+    └── schema.prisma  # 数据库模型
 ```
 
-## 🎨 Available Features & Components
+## 🔒 数据安全
 
-This scaffold includes a comprehensive set of modern web development tools:
+- ✅ 模块数据绝对隔离
+- ✅ 只读数据总线通信
+- ✅ 本地优先存储
+- ✅ 模块增删改互不影响
 
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
+## 📝 开发日志
 
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
-
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
-
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
-
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
-
-## 🤝 Get Started with Z.ai
-
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+查看 [worklog.md](./worklog.md) 了解完整的开发过程。
 
 ---
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+**Built with ❤️ for personal growth and life management.**
