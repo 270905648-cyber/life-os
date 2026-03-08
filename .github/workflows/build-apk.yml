@@ -1,90 +1,57 @@
-# GitHub Actions 自动构建 APK
-# 注意：由于应用包含 API 路由，建议使用 PWA 方式或本地运行
-
-name: Build APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: [ main, master ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Build Next.js app
-        run: bun run build
-        env:
-          DATABASE_URL: "file:./db/custom.db"
-
-      - name: Prepare static files for Capacitor
-        run: |
-          # 创建输出目录
-          mkdir -p out/.next/static
-          mkdir -p out/public
-          
-          # 复制 standalone 文件
-          cp -r .next/standalone/* out/ 2>/dev/null || true
-          
-          # 复制静态文件
-          cp -r .next/static/* out/.next/static/ 2>/dev/null || true
-          
-          # 复制 public 文件
-          cp -r public/* out/public/ 2>/dev/null || true
-          
-          # 如果 standalone 不存在，尝试直接复制 .next
-          if [ ! -f "out/server.js" ]; then
-            echo "Creating simple static index..."
-            echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>个人中枢</title></head><body><div id="__next"></div><script>location.href="/";</script></body></html>' > out/index.html
-          fi
-          
-          echo "Contents of out directory:"
-          ls -la out/ || true
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-        continue-on-error: true
-
-      - name: Build APK (Debug)
-        run: |
-          cd android
-          ./gradlew assembleDebug
-        continue-on-error: true
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: app-debug-apk
-          path: |
-            android/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
-          if-no-files-found: warn
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Install dependencies
+      run: bun install
+      
+    - name: Build Next.js static files
+      run: bun run build
+      
+    - name: Sync to Capacitor
+      run: npx cap sync android
+      
+    - name: Build Debug APK
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: life-os-apk
+        path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
