@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Sparkles, 
@@ -27,9 +26,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { MODULES, type ModuleCode } from '@/types';
-import { useUserStore, useModuleStore, useUIStore, useAiStore } from '@/stores/app-store';
 import { cn } from '@/lib/utils';
+import { userStore } from '@/lib/local-db';
+
+// 模块配置
+const MODULES = [
+  { code: 'image', name: '形象管理', icon: 'Sparkles', color: 'rose' },
+  { code: 'health', name: '健康养生', icon: 'Heart', color: 'green' },
+  { code: 'teaching', name: '数学教学', icon: 'GraduationCap', color: 'blue' },
+  { code: 'media', name: '自媒体IP', icon: 'Video', color: 'purple' },
+  { code: 'emotion', name: '情感人际', icon: 'Users', color: 'pink' },
+  { code: 'sidejob', name: '副业增收', icon: 'TrendingUp', color: 'amber' },
+  { code: 'growth', name: '自我成长', icon: 'Target', color: 'cyan' },
+  { code: 'tools', name: '生活工具', icon: 'Wrench', color: 'slate' }
+] as const;
+
+type ModuleCode = typeof MODULES[number]['code'];
+type ViewType = 'home' | 'dashboard' | ModuleCode;
 
 const iconMap: Record<string, React.ReactNode> = {
   Sparkles: <Sparkles className="w-5 h-5" />,
@@ -53,27 +66,40 @@ const colorMap: Record<string, string> = {
   slate: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 hover:bg-slate-500/20'
 };
 
-// 侧边栏内容组件 - 移到外部
-function SidebarContent({ 
-  activeView, 
-  user, 
-  mounted,
-  onNavigate,
-  onToggleAi,
-  sidebarOpen,
-  setSidebarOpen
-}: { 
-  activeView: 'home' | 'dashboard' | ModuleCode;
-  user: { name?: string; totalPoints: number; currentLevel: number } | null;
-  mounted: boolean;
-  onNavigate: (view: 'home' | 'dashboard' | ModuleCode) => void;
-  onToggleAi: () => void;
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-}) {
-  const { theme, setTheme } = useTheme();
+interface MainLayoutProps {
+  children: React.ReactNode;
+  activeView?: ViewType;
+  onViewChange?: (view: ViewType) => void;
+  onToggleAi?: () => void;
+}
 
-  return (
+export function MainLayout({ children, activeView = 'home', onViewChange, onToggleAi }: MainLayoutProps) {
+  const { theme, setTheme } = useTheme();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<{ name?: string; totalPoints: number; currentLevel: number } | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 加载用户数据
+  useEffect(() => {
+    userStore.getAll().then(users => {
+      if (users.length > 0) {
+        setUser(users[0]);
+      }
+    });
+  }, []);
+
+  const handleNavigate = (view: ViewType) => {
+    onViewChange?.(view);
+    setSidebarOpen(false);
+  };
+
+  // 侧边栏JSX - 直接内联，不创建组件
+  const sidebarJsx = (
     <div className="flex flex-col h-full">
       {/* Logo区域 */}
       <div className="p-4 border-b border-border">
@@ -110,14 +136,13 @@ function SidebarContent({
       {/* 导航菜单 */}
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-1">
-          {/* 主导航 */}
           <Button
             variant={activeView === 'home' ? 'secondary' : 'ghost'}
             className={cn(
               "w-full justify-start gap-3",
               activeView === 'home' && "bg-primary/10 text-primary"
             )}
-            onClick={() => onNavigate('home')}
+            onClick={() => handleNavigate('home')}
           >
             <LayoutDashboard className="w-5 h-5" />
             <span>首页时间轴</span>
@@ -129,7 +154,7 @@ function SidebarContent({
               "w-full justify-start gap-3",
               activeView === 'dashboard' && "bg-primary/10 text-primary"
             )}
-            onClick={() => onNavigate('dashboard')}
+            onClick={() => handleNavigate('dashboard')}
           >
             <BarChart3 className="w-5 h-5" />
             <span>数据仪表盘</span>
@@ -149,7 +174,7 @@ function SidebarContent({
                 "w-full justify-start gap-3",
                 activeView === mod.code && colorMap[mod.color]
               )}
-              onClick={() => onNavigate(mod.code)}
+              onClick={() => handleNavigate(mod.code)}
             >
               {iconMap[mod.icon]}
               <span className="flex-1 text-left">{mod.name}</span>
@@ -164,7 +189,7 @@ function SidebarContent({
         <Button
           variant="outline"
           className="w-full justify-start gap-3"
-          onClick={onToggleAi}
+          onClick={() => onToggleAi?.()}
         >
           <Bot className="w-5 h-5" />
           <span>AI助手</span>
@@ -186,72 +211,18 @@ function SidebarContent({
       </div>
     </div>
   );
-}
-
-interface MainLayoutProps {
-  children: React.ReactNode;
-  activeView?: 'home' | 'dashboard' | ModuleCode;
-  onViewChange?: (view: 'home' | 'dashboard' | ModuleCode) => void;
-}
-
-export function MainLayout({ children, activeView = 'home', onViewChange }: MainLayoutProps) {
-  const { user, setActiveModule } = useUserStore();
-  const moduleStore = useModuleStore();
-  const { sidebarOpen, setSidebarOpen } = useUIStore();
-  const { isOpen: aiOpen, setOpen: setAiOpen } = useAiStore();
-  const [mounted, setMounted] = useState(false);
-
-  // 使用 useLayoutEffect 或初始化时设置
-  useEffect(() => {
-    // 使用 setTimeout 避免同步 setState 警告
-    const timer = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleNavigate = (view: 'home' | 'dashboard' | ModuleCode) => {
-    moduleStore.setActiveModule(view === 'home' || view === 'dashboard' ? null : view);
-    onViewChange?.(view);
-    setSidebarOpen(false);
-  };
-
-  const handleToggleAi = () => {
-    setAiOpen(!aiOpen);
-  };
-
-  // 使用 useMemo 缓存用户数据
-  const userData = useMemo(() => user ? {
-    name: user.name,
-    totalPoints: user.totalPoints,
-    currentLevel: user.currentLevel
-  } : null, [user]);
 
   return (
     <div className="min-h-screen bg-background">
       {/* 桌面端侧边栏 */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:block lg:w-64 lg:border-r lg:border-border lg:bg-background">
-        <SidebarContent 
-          activeView={activeView} 
-          user={userData}
-          mounted={mounted}
-          onNavigate={handleNavigate}
-          onToggleAi={handleToggleAi}
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-        />
+        {sidebarJsx}
       </aside>
 
       {/* 移动端侧边栏 */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
-          <SidebarContent 
-            activeView={activeView} 
-            user={userData}
-            mounted={mounted}
-            onNavigate={handleNavigate}
-            onToggleAi={handleToggleAi}
-            sidebarOpen={sidebarOpen}
-            setSidebarOpen={setSidebarOpen}
-          />
+          {sidebarJsx}
         </SheetContent>
       </Sheet>
 
@@ -284,7 +255,7 @@ export function MainLayout({ children, activeView = 'home', onViewChange }: Main
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setAiOpen(!aiOpen)}
+                onClick={() => onToggleAi?.()}
                 className="relative"
               >
                 <Bot className="w-5 h-5" />

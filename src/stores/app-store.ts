@@ -13,6 +13,7 @@ interface UserStore {
   user: {
     id: string;
     name: string;
+    avatar?: string;
     totalPoints: number;
     currentLevel: number;
     streak: number;
@@ -23,6 +24,7 @@ interface UserStore {
   } | null;
   setUser: (user: UserStore['user']) => void;
   updatePoints: (delta: number) => void;
+  updateStats: (stats: Partial<NonNullable<UserStore['user']>>) => void;
 }
 
 export const useUserStore = create<UserStore>()(
@@ -35,6 +37,9 @@ export const useUserStore = create<UserStore>()(
           ...state.user,
           totalPoints: state.user.totalPoints + delta
         } : null
+      })),
+      updateStats: (stats) => set((state) => ({
+        user: state.user ? { ...state.user, ...stats } : null
       }))
     }),
     { name: 'life-os-user' }
@@ -73,6 +78,51 @@ export const useModuleStore = create<ModuleStore>()((set) => ({
   activeModule: null,
   setActiveModule: (module) => set({ activeModule: module })
 }));
+
+// ==========================================
+// AI 助手状态
+// ==========================================
+
+interface AiStore {
+  isOpen: boolean;
+  setOpen: (open: boolean) => void;
+  toggleOpen: () => void;
+}
+
+export const useAiStore = create<AiStore>()(
+  persist(
+    (set) => ({
+      isOpen: false,
+      setOpen: (open) => set({ isOpen: open }),
+      toggleOpen: () => set((state) => ({ isOpen: !state.isOpen }))
+    }),
+    { name: 'life-os-ai' }
+  )
+);
+
+// ==========================================
+// 情绪状态
+// ==========================================
+
+interface EmotionStore {
+  currentEmotion: string | null;
+  emotionIntensity: number;
+  setEmotion: (emotion: string, intensity: number) => void;
+}
+
+export const useEmotionStore = create<EmotionStore>()(
+  persist(
+    (set) => ({
+      currentEmotion: null,
+      emotionIntensity: 5,
+      setEmotion: (emotion, intensity) => set({
+        currentEmotion: emotion,
+        emotionIntensity: intensity
+      })
+    }),
+    { name: 'life-os-emotion' }
+  )
+);
 
 // ==========================================
 // UI状态
