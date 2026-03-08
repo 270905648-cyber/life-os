@@ -1,8 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// ==========================================
+// 个人中枢App - 插件化微内核架构数据库设计
+// ==========================================
+// 设计原则：
+// 1. 全局数据与模块数据绝对隔离
+// 2. 每个模块独立数据表
+// 3. 通过只读数据总线进行模块间通信
 
 generator client {
   provider = "prisma-client-js"
@@ -13,20 +15,1010 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==========================================
+// 一、全局核心数据（主壳管理）
+// ==========================================
+
+/// 用户信息
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  avatar        String?
+  nickname      String?
+  birthday      String?
+  bio           String?
+  
+  // 积分系统
+  totalPoints   Int      @default(0)
+  currentLevel  Int      @default(1)
+  
+  // 时间戳
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // 关联
+  tasks         Task[]
+  goals         Goal[]
+  habits        Habit[]
+  habitLogs     HabitLog[]
+  points        PointRecord[]
+  badges        UserBadge[]
+  timeCapsules  TimeCapsule[]
+  aiChats       AiChat[]
+  journals      Journal[]
 }
 
-model Post {
+/// 积分记录
+model PointRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  points      Int
+  type        String   // earn, spend
+  source      String   // task, habit, badge, ai_chat, etc.
+  description String?
+  
+  balance     Int      // 变动后余额
+  
+  createdAt   DateTime @default(now())
+}
+
+/// 勋章定义
+model Badge {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  icon        String?
+  category    String   // time, module, ultimate
+  rarity      String   // common, rare, epic, legendary
+  condition   String?  // 获得条件JSON
+  
+  createdAt   DateTime @default(now())
+  
+  userBadges  UserBadge[]
+}
+
+/// 用户勋章
+model UserBadge {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  
+  earnedAt  DateTime @default(now())
+  
+  @@unique([userId, badgeId])
+}
+
+/// 全周期任务（首页时间轴）
+model Task {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  title       String
+  description String?
+  
+  // 时间维度
+  period      String   // today, week, month, quarter, year
+  dueDate     DateTime?
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // 关联模块
+  module      String?  // image, health, teaching, media, emotion, sidejob, growth, tools
+  moduleId    String?  // 关联模块内的具体记录ID
+  
+  // 状态
+  status      String   @default("pending") // pending, in_progress, completed, cancelled
+  priority    String   @default("medium")  // low, medium, high, urgent
+  
+  // 积分
+  points      Int      @default(0)
+  
+  // 时间戳
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+}
+
+/// 目标管理
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  title       String
+  description String?
+  
+  // 时间维度
+  period      String   // month, quarter, year, five_year
+  
+  // 进度
+  progress    Int      @default(0) // 0-100
+  milestones  String?  // 里程碑JSON
+  
+  // 关联模块
+  module      String?
+  
+  // 状态
+  status      String   @default("active") // active, completed, paused
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 习惯打卡
+model Habit {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  name        String
+  icon        String?
+  color       String?
+  description String?
+  
+  // 频率
+  frequency   String   @default("daily") // daily, weekly
+  targetDays  String?  // 目标天数JSON [0,1,2,3,4,5,6]
+  
+  // 统计
+  streak      Int      @default(0)  // 连续天数
+  bestStreak  Int      @default(0)  // 最佳连续
+  totalDays   Int      @default(0)  // 累计天数
+  
+  // 积分
+  points      Int      @default(10)
+  
+  // 关联模块
+  module      String?
+  
+  // 状态
+  status      String   @default("active") // active, paused, archived
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  logs        HabitLog[]
+}
+
+/// 习惯打卡记录
+model HabitLog {
+  id        String   @id @default(cuid())
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  date      DateTime
+  completed Boolean  @default(false)
+  note      String?
+  
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  
+  @@unique([habitId, date])
+}
+
+/// AI对话记录
+model AiChat {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  role        String   // user, assistant
+  content     String
+  
+  // 对话类型
+  type        String   @default("chat") // chat, emotion, advice, companion
+  
+  // 情绪识别
+  emotion     String?  // happy, sad, anxious, neutral, etc.
+  
+  createdAt   DateTime @default(now())
+}
+
+/// 日记复盘
+model Journal {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  title       String?
+  content     String
+  
+  // 类型
+  type        String   @default("daily") // daily, weekly, monthly, special
+  
+  // 心情
+  mood        String?  // great, good, neutral, bad, terrible
+  
+  // 关联
+  module      String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 时光胶囊
+model TimeCapsule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  title       String
+  content     String
+  
+  // 开启时间
+  openDate    DateTime
+  
+  // 是否已开启
+  opened      Boolean  @default(false)
+  openedAt    DateTime?
+  
+  // 类型
+  type        String   @default("future") // future, milestone, annual
+  
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// 二、模块1：形象管理
+// ==========================================
+
+/// 衣橱管理
+model WardrobeItem {
+  id          String   @id @default(cuid())
+  
+  name        String
+  category    String   // tops, bottoms, outerwear, shoes, accessories
+  subcategory String?
+  brand       String?
+  color       String?
+  size        String?
+  material    String?
+  
+  // 季节适用
+  seasons     String?  // JSON ["spring", "summer", "fall", "winter"]
+  
+  // 风格标签
+  styles      String?  // JSON ["casual", "formal", "sporty"]
+  
+  // 图片
+  imageUrl    String?
+  
+  // 状态
+  status      String   @default("active") // active, donated, discarded
+  wearCount   Int      @default(0)
+  
+  // 购买信息
+  purchaseDate String?
+  price       Float?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  outfitItems OutfitItem[]
+}
+
+/// 穿搭方案
+model Outfit {
+  id          String   @id @default(cuid())
+  
+  name        String
+  description String?
+  
+  // 场合
+  occasion    String?  // work, casual, date, party, sport
+  season      String?
+  
+  // 评分
+  rating      Int?
+  
+  // 图片
+  imageUrl    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  items       OutfitItem[]
+}
+
+/// 穿搭关联
+model OutfitItem {
+  id          String   @id @default(cuid())
+  outfitId    String
+  outfit      Outfit   @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        WardrobeItem @relation(fields: [itemId], references: [id])
+  
+  createdAt   DateTime @default(now())
+}
+
+/// 肤质记录
+model SkinRecord {
+  id          String   @id @default(cuid())
+  
+  // 肤质类型
+  skinType    String?  // oily, dry, combination, normal, sensitive
+  
+  // 肌肤状况
+  conditions  String?  // JSON ["acne", "dryness", "oiliness", "sensitivity"]
+  
+  // 记录内容
+  note        String?
+  
+  // 图片
+  imageUrl    String?
+  
+  // 关联健康模块体质
+  constitution String?
+  
+  recordDate  DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+/// 护肤方案
+model SkincarePlan {
+  id          String   @id @default(cuid())
+  
+  name        String
+  description String?
+  
+  // 时间段
+  timeOfDay   String   // morning, evening, both
+  
+  // 步骤
+  steps       String?  // JSON [{name, product, duration}]
+  
+  // 适合肤质
+  skinTypes   String?  // JSON
+  
+  // 效果追踪
+  startDate   DateTime?
+  endDate     DateTime?
+  results     String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==========================================
+// 三、模块2：健康养生
+// ==========================================
+
+/// 中医体质分析
+model Constitution {
+  id          String   @id @default(cuid())
+  
+  // 体质类型
+  type        String   // 平和质、气虚质、阳虚质、阴虚质、痰湿质、湿热质、血瘀质、气郁质、特禀质
+  
+  // 分析结果
+  score       Int      @default(0) // 倾向程度 0-100
+  symptoms    String?  // JSON 症状列表
+  
+  // 建议
+  advice      String?
+  
+  // 时间
+  analyzedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  // 关联
+  tongueRecords TongueRecord[]
+}
+
+/// 舌象记录
+model TongueRecord {
+  id            String   @id @default(cuid())
+  constitutionId String?
+  constitution  Constitution? @relation(fields: [constitutionId], references: [id])
+  
+  // 图片
+  imageUrl      String?
+  
+  // 舌象分析
+  tongueColor   String?  // 淡红、红、绛红、淡白
+  tongueCoating String?  // 薄白、厚白、薄黄、厚黄、无苔
+  tongueShape   String?  // 正常、胖大、瘦薄、齿痕
+  tongueMoisture String? // 润、燥
+  
+  // AI分析
+  aiAnalysis    String?
+  
+  // 建议
+  suggestions   String?
+  
+  recordDate    DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
+
+/// 指甲记录
+model NailRecord {
+  id          String   @id @default(cuid())
+  
+  // 图片
+  imageUrl    String?
+  
+  // 指甲状况
+  color       String?  // 正常、苍白、发黄、发紫
+  shape       String?  // 正常、勺状、杵状
+  surface     String?  // 光滑、纵纹、横纹、凹点
+  lunula      String?  // 月牙状况
+  
+  // AI分析
+  aiAnalysis  String?
+  
+  recordDate  DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+/// 养生茶饮
+model TeaRecipe {
+  id          String   @id @default(cuid())
+  
+  name        String
+  description String?
+  
+  // 配料
+  ingredients String?  // JSON [{name, amount}]
+  
+  // 功效
+  benefits    String?  // JSON
+  suitableConstitutions String? // JSON 适合的体质
+  
+  // 做法
+  method      String?
+  
+  // 禁忌
+  contraindications String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 调理计划
+model HealthPlan {
+  id          String   @id @default(cuid())
+  
+  title       String
+  description String?
+  
+  // 目标体质
+  targetType  String?
+  
+  // 计划内容
+  items       String?  // JSON [{type, content, frequency}]
+  
+  // 周期
+  duration    Int?     // 天数
+  
+  // 进度
+  progress    Int      @default(0)
+  
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String   @default("active")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==========================================
+// 四、模块3：数学教学
+// ==========================================
+
+/// 学生管理
+model Student {
+  id          String   @id @default(cuid())
+  
+  name        String
+  grade       String?
+  school      String?
+  
+  // 联系方式
+  phone       String?
+  wechat      String?
+  parentName  String?
+  parentPhone String?
+  
+  // 学习情况
+  level       String?  // 基础、中等、优秀
+  weakPoints  String?  // JSON 薄弱知识点
+  
+  // 排课
+  schedule    String?  // JSON 上课时间
+  
+  // 状态
+  status      String   @default("active") // active, paused, graduated
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  examRecords ExamRecord[]
+  lessonPlans LessonPlan[]
+}
+
+/// 教案
+model LessonPlan {
+  id          String   @id @default(cuid())
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id])
+  
+  title       String
+  subject     String?
+  grade       String?
+  
+  // 教学内容
+  objectives  String?  // JSON 教学目标
+  content     String?  // 教学内容
+  keyPoints   String?  // JSON 重点难点
+  
+  // AI生成
+  aiGenerated Boolean  @default(false)
+  
+  // 时间
+  duration    Int?     // 分钟
+  
+  // 状态
+  status      String   @default("draft") // draft, completed, used
+  
+  lessonDate  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 题库
+model Question {
+  id          String   @id @default(cuid())
+  
+  // 题型
+  type        String   // choice, fill, calculation, proof
+  
+  // 题目
+  content     String
+  imageUrl    String?
+  
+  // 选项（选择题）
+  options     String?  // JSON
+  
+  // 答案
+  answer      String
+  explanation String?
+  
+  // 分类
+  subject     String?
+  grade       String?
+  chapter     String?
+  difficulty  String   @default("medium") // easy, medium, hard
+  
+  // 标签
+  tags        String?  // JSON
+  
+  // 来源
+  source      String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 考试记录
+model ExamRecord {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  
+  title       String
+  
+  // 成绩
+  score       Float?
+  totalScore  Float?
+  
+  // 分析
+  analysis    String?  // AI阅卷分析
+  
+  // 错题
+  wrongQuestions String? // JSON
+  
+  examDate    DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// 五、模块4：自媒体IP
+// ==========================================
+
+/// 文案脚本
+model ContentScript {
+  id          String   @id @default(cuid())
+  
+  title       String
+  content     String
+  
+  // 类型
+  type        String   // article, video_script, short_post
+  
+  // 平台
+  platform    String?  // wechat, douyin, xiaohongshu, bilibili
+  
+  // 标签
+  tags        String?  // JSON
+  
+  // 状态
+  status      String   @default("draft") // draft, published, archived
+  
+  // AI生成
+  aiGenerated Boolean  @default(false)
+  
+  // 数据
+  views       Int      @default(0)
+  likes       Int      @default(0)
+  comments    Int      @default(0)
+  
+  publishedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 选题策划
+model TopicPlan {
+  id          String   @id @default(cuid())
+  
+  title       String
+  description String?
+  
+  // 分类
+  category    String?
+  
+  // 优先级
+  priority    String   @default("medium")
+  
+  // 状态
+  status      String   @default("planned") // planned, in_progress, completed
+  
+  // 时间
+  plannedDate DateTime?
+  
+  // 备注
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 发布日历
+model PublishCalendar {
+  id          String   @id @default(cuid())
+  
+  title       String
+  platform    String?
+  
+  // 发布时间
+  publishDate DateTime
+  
+  // 关联内容
+  contentId   String?
+  
+  // 状态
+  status      String   @default("scheduled") // scheduled, published, cancelled
+  
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==========================================
+// 六、模块5：情感人际
+// ==========================================
+
+/// 关系记录
+model Relationship {
+  id          String   @id @default(cuid())
+  
+  name        String
+  relation    String?  // family, friend, colleague, romantic, acquaintance
+  
+  // 基本信息
+  age         Int?
+  occupation  String?
+  location    String?
+  
+  // 联系方式
+  phone       String?
+  wechat      String?
+  
+  // 关系描述
+  description String?
+  metDate     String?
+  
+  // 互动记录
+  interactions String? // JSON [{date, content, emotion}]
+  
+  // 亲密度
+  closeness   Int      @default(50) // 0-100
+  
+  // 下次联系提醒
+  nextContact DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 沟通策略
+model CommunicationStrategy {
+  id          String   @id @default(cuid())
+  relationshipId String?
+  
+  title       String
+  content     String
+  
+  // 场景
+  scenario    String?
+  
+  // AI建议
+  aiAdvice    String?
+  
+  // 效果反馈
+  feedback    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 相亲资料
+model DatingProfile {
+  id          String   @id @default(cuid())
+  
+  name        String
+  age         Int?
+  
+  // 基本信息
+  height      Int?
+  education   String?
+  occupation  String?
+  income      String?
+  hometown    String?
+  residence   String?
+  
+  // 要求
+  requirements String?
+  
+  // 联系方式
+  phone       String?
+  wechat      String?
+  
+  // 介绍人
+  introducer  String?
+  
+  // 约会记录
+  dates       String?  // JSON
+  
+  // 状态
+  status      String   @default("contacting") // contacting, dating, paused, ended
+  
+  // 评价
+  rating      Int?
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==========================================
+// 七、模块6：副业增收
+// ==========================================
+
+/// 项目管理
+model SideProject {
+  id          String   @id @default(cuid())
+  
+  name        String
+  description String?
+  
+  // 类型
+  type        String?  // freelance, ecommerce, content, investment
+  
+  // 状态
+  status      String   @default("active") // active, paused, completed
+  
+  // 时间
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // 预算
+  budget      Float?
+  
+  // 收益
+  totalRevenue Float  @default(0)
+  totalExpense Float  @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  transactions ProjectTransaction[]
+  tasks        ProjectTask[]
+}
+
+/// 项目收支
+model ProjectTransaction {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     SideProject @relation(fields: [projectId], references: [id])
+  
+  type        String   // income, expense
+  amount      Float
+  description String?
+  
+  category    String?
+  
+  transactionDate DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+}
+
+/// 项目任务
+model ProjectTask {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     SideProject @relation(fields: [projectId], references: [id])
+  
+  title       String
+  description String?
+  
+  status      String   @default("pending")
+  priority    String   @default("medium")
+  
+  dueDate     DateTime?
+  completedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==========================================
+// 八、模块7：自我成长
+// ==========================================
+
+/// 五年计划
+model FiveYearPlan {
+  id          String   @id @default(cuid())
+  
+  title       String
+  description String?
+  
+  // 年份
+  year        Int
+  
+  // 目标
+  goals       String?  // JSON [{category, goal, metrics}]
+  
+  // 进度
+  progress    Int      @default(0)
+  
+  // 状态
+  status      String   @default("active")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 认知复盘
+model CognitiveReview {
+  id          String   @id @default(cuid())
+  
+  title       String
+  content     String
+  
+  // 类型
+  type        String   // insight, mistake, learning, reflection
+  
+  // 分类
+  category    String?
+  
+  // 关键词
+  keywords    String?  // JSON
+  
+  // AI总结
+  aiSummary   String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==========================================
+// 九、模块8：生活工具
+// ==========================================
+
+/// 财务记账
+model FinanceRecord {
+  id          String   @id @default(cuid())
+  
+  type        String   // income, expense
+  category    String?
+  amount      Float
+  
+  description String?
+  
+  // 账户
+  account     String?  // cash, bank, credit_card, alipay, wechat
+  
+  // 日期
+  recordDate  DateTime @default(now())
+  
+  createdAt   DateTime @default(now())
+}
+
+/// 事务提醒
+model Reminder {
+  id          String   @id @default(cuid())
+  
+  title       String
+  description String?
+  
+  // 提醒时间
+  remindAt    DateTime
+  
+  // 重复
+  repeat      String?  // none, daily, weekly, monthly, yearly
+  
+  // 状态
+  status      String   @default("pending") // pending, completed, cancelled
+  
+  // 已提醒
+  reminded    Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 地址管理
+model AddressBook {
+  id          String   @id @default(cuid())
+  
+  name        String
+  category    String?  // home, work, other
+  
+  address     String
+  latitude    Float?
+  longitude   Float?
+  
+  contact     String?
+  phone       String?
+  
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 证件卡片
+model CardRecord {
+  id          String   @id @default(cuid())
+  
+  name        String
+  type        String   // id_card, bank_card, credit_card, membership, other
+  
+  number      String?
+  holder      String?
+  
+  // 有效期
+  validFrom   String?
+  validTo     String?
+  
+  // 备注
+  notes       String?
+  
+  // 安全：加密存储敏感信息
+  encrypted   Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
