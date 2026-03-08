@@ -9,22 +9,23 @@ import {
   Sparkles, 
   Heart, 
   Lightbulb,
-  MessageCircle,
   Smile,
   Frown,
   Meh,
-  Zap,
-  Loader2
+  Loader2,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { useAiStore, useEmotionStore } from '@/stores/app-store';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { aiChatStore, initDefaultData } from '@/lib/local-db';
+import { sendAiMessage, setApiKey, getApiKeyMasked, hasApiKey, type AiChatType } from '@/lib/ai-service';
 import { cn } from '@/lib/utils';
-import type { AiMessage, EmotionType } from '@/types';
 
-const emotionOptions: { type: EmotionType; icon: React.ReactNode; label: string; color: string }[] = [
+const emotionOptions = [
   { type: 'happy', icon: <Smile className="w-4 h-4" />, label: '开心', color: 'text-green-500' },
   { type: 'calm', icon: <Meh className="w-4 h-4" />, label: '平静', color: 'text-blue-500' },
   { type: 'anxious', icon: <Frown className="w-4 h-4" />, label: '焦虑', color: 'text-amber-500' },
@@ -32,24 +33,66 @@ const emotionOptions: { type: EmotionType; icon: React.ReactNode; label: string;
 ];
 
 const quickActions = [
-  { icon: <Heart className="w-4 h-4" />, label: '情绪倾诉', type: 'emotion' },
-  { icon: <Lightbulb className="w-4 h-4" />, label: '获取建议', type: 'advice' },
-  { icon: <Sparkles className="w-4 h-4" />, label: '成长激励', type: 'companion' },
+  { icon: <Heart className="w-4 h-4" />, label: '情绪倾诉', type: 'emotion' as AiChatType },
+  { icon: <Lightbulb className="w-4 h-4" />, label: '获取建议', type: 'advice' as AiChatType },
+  { icon: <Sparkles className="w-4 h-4" />, label: '成长激励', type: 'companion' as AiChatType },
 ];
 
+interface AiMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  type: AiChatType;
+  createdAt: Date;
+}
+
 export function AiAssistant() {
-  const { messages, isOpen, addMessage, setOpen } = useAiStore();
-  const { currentEmotion, setEmotion } = useEmotionStore();
+  const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentEmotion, setCurrentEmotion] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasKey, setHasKey] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 加载历史消息 - 必须在 useEffect 之前定义
+  const loadMessages = async () => {
+    const stored = await aiChatStore.getAll();
+    setMessages(stored.map(m => ({
+      ...m,
+      createdAt: new Date(m.createdAt)
+    })).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()));
+  };
+
+  // 初始化
+  useEffect(() => {
+    initDefaultData().then(() => {
+      loadMessages();
+      setHasKey(hasApiKey());
+    });
+  }, []);
+
+  // 滚动到底部
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
 
+  // 保存消息
+  const saveMessage = async (msg: AiMessage) => {
+    await aiChatStore.save({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      type: msg.type,
+      createdAt: msg.createdAt.toISOString()
+    });
+  };
+
+  // 发送消息
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -61,46 +104,63 @@ export function AiAssistant() {
       createdAt: new Date()
     };
 
-    addMessage(userMessage);
+    setMessages(prev => [...prev, userMessage]);
+    await saveMessage(userMessage);
     setInput('');
     setIsLoading(true);
 
-    // 模拟AI响应
-    setTimeout(() => {
-      const aiMessage: AiMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: generateAiResponse(input),
-        type: 'chat',
-        createdAt: new Date()
-      };
-      addMessage(aiMessage);
-      setIsLoading(false);
-    }, 1000);
+    // 获取 AI 回复
+    const context = messages.slice(-10).map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+
+    const reply = await sendAiMessage(input, 'chat', context);
+
+    const aiMessage: AiMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: reply,
+      type: 'chat',
+      createdAt: new Date()
+    };
+
+    setMessages(prev => [...prev, aiMessage]);
+    await saveMessage(aiMessage);
+    setIsLoading(false);
   };
 
-  const handleQuickAction = (type: string) => {
-    const prompts: Record<string, string> = {
+  // 快捷操作
+  const handleQuickAction = (type: AiChatType) => {
+    const prompts: Record<AiChatType, string> = {
+      chat: '你好！',
       emotion: '我想聊聊今天的心情...',
       advice: '请给我一些关于时间管理的建议',
       companion: '我今天有点累，需要一些鼓励'
     };
-    setInput(prompts[type] || '');
+    setInput(prompts[type]);
   };
 
-  const handleEmotionSelect = (emotion: EmotionType) => {
-    setEmotion(emotion, 5);
-    const prompts: Record<EmotionType, string> = {
+  // 情绪选择
+  const handleEmotionSelect = (emotion: string) => {
+    setCurrentEmotion(emotion);
+    const prompts: Record<string, string> = {
       happy: '今天心情很不错！',
       calm: '今天状态比较平静',
       anxious: '最近有点焦虑，想找人聊聊',
       sad: '今天心情不太好...',
-      excited: '今天非常兴奋！',
-      neutral: '状态一般',
-      angry: '今天有点生气',
-      tired: '感觉很疲惫'
     };
-    setInput(prompts[emotion]);
+    setInput(prompts[emotion] || '');
+  };
+
+  // 保存 API Key
+  const handleSaveApiKey = () => {
+    if (apiKeyInput.trim()) {
+      setApiKey(apiKeyInput.trim());
+      setHasKey(true);
+      setIsSettingsOpen(false);
+      setApiKeyInput('');
+    }
   };
 
   return (
@@ -125,9 +185,45 @@ export function AiAssistant() {
                     <p className="text-xs text-muted-foreground">随时陪伴，智能赋能</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
-                  <X className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>AI 设置</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>API Key</Label>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            从 open.bigmodel.cn 获取
+                          </p>
+                          <Input
+                            type="password"
+                            value={apiKeyInput}
+                            onChange={(e) => setApiKeyInput(e.target.value)}
+                            placeholder="输入你的 API Key"
+                          />
+                          {hasKey && (
+                            <p className="text-xs text-green-600 mt-1">
+                              当前: {getApiKeyMasked()}
+                            </p>
+                          )}
+                        </div>
+                        <Button onClick={handleSaveApiKey} className="w-full">
+                          保存
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -164,6 +260,11 @@ export function AiAssistant() {
                   <p className="text-xs text-muted-foreground/70 mt-1">
                     可以和我聊天、倾诉或寻求建议
                   </p>
+                  {!hasKey && (
+                    <p className="text-xs text-amber-600 mt-2">
+                      请先在设置中配置 API Key
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -185,7 +286,7 @@ export function AiAssistant() {
                             : "bg-muted rounded-bl-md"
                         )}
                       >
-                        <p className="text-sm">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -246,33 +347,21 @@ export function AiAssistant() {
           </div>
         </motion.div>
       )}
+
+      {/* 浮动按钮 */}
+      {!isOpen && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-4 right-4 w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg flex items-center justify-center z-50"
+        >
+          <Bot className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+        </motion.button>
+      )}
     </AnimatePresence>
   );
-}
-
-// 简单的AI响应生成（实际项目中应调用后端API）
-function generateAiResponse(input: string): string {
-  const lowerInput = input.toLowerCase();
-  
-  if (lowerInput.includes('心情') || lowerInput.includes('情绪')) {
-    return '我能理解你的感受。每个人都有起伏，这很正常。要不要和我聊聊发生了什么？或者我可以给你一些调节情绪的小建议。';
-  }
-  
-  if (lowerInput.includes('焦虑') || lowerInput.includes('压力')) {
-    return '焦虑是对未知的正常反应。试试深呼吸练习：吸气4秒，屏息4秒，呼气4秒。另外，把大任务拆成小步骤，一步一步来，会感觉好很多。';
-  }
-  
-  if (lowerInput.includes('建议') || lowerInput.includes('如何')) {
-    return '这是一个很好的问题！根据你的情况，我建议：1. 设定明确的目标；2. 优先处理重要任务；3. 适当休息保持精力。需要更具体的建议吗？';
-  }
-  
-  if (lowerInput.includes('累') || lowerInput.includes('疲惫')) {
-    return '辛苦了！记得适时休息。你已经做得很棒了，不要对自己太苛刻。试试听首喜欢的歌，或者泡杯茶放松一下？';
-  }
-  
-  if (lowerInput.includes('开心') || lowerInput.includes('高兴')) {
-    return '太棒了！🎉 看到你心情好，我也很开心！保持这份好心情，它会给你带来更多正能量。';
-  }
-  
-  return '我理解你的意思。有什么我可以帮助你的吗？无论是学习建议、情绪支持还是日常规划，我都很乐意协助你。';
 }
