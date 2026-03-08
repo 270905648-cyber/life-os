@@ -112,4 +112,50 @@ src/
 
 ---
 
+## 📱 打包 APK
+
+### 方法一：GitHub Actions 自动构建（推荐）
+
+1. **推送代码到 GitHub**
+   ```bash
+   git add .
+   git commit -m "feat: your changes"
+   git push
+   ```
+
+2. **触发构建**
+   - 进入 GitHub 仓库 → Actions → "Build APK" → Run workflow
+   - 或直接 push 到 main 分支自动触发
+
+3. **下载 APK**
+   - 构建完成后，在 Actions 页面下载 `app-debug-apk` artifact
+   - 或在 Releases 页面下载自动发布的 APK
+
+### 方法二：本地构建
+
+```bash
+# 1. 安装依赖
+bun install
+
+# 2. 构建 Next.js
+bun run build
+
+# 3. 同步到 Android
+npx cap add android
+npx cap sync
+
+# 4. 打开 Android Studio 构建 APK
+npx cap open android
+```
+
+### 方法三：PWA 安装（最简单）
+
+1. 访问部署后的网站
+2. 浏览器会提示"添加到主屏幕"
+3. 点击安装即可像 APP 一样使用
+
+> 💡 **提示**: PWA 版本支持离线使用，体验接近原生 APP
+
+---
+
 **Built with ❤️ for personal growth and life management.**
