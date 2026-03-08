@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'z-ai-web-dev-sdk';
+import ZAI from 'z-ai-web-dev-sdk';
+
+// 初始化 SDK
+const z = new ZAI({
+  apiKey: process.env.Z_API_KEY || '',
+});
 
 export async function POST(request: NextRequest) {
   try {
